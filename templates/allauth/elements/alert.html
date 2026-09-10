@@ -1,0 +1,21 @@
+{% load allauth %}
+<div class="alert alert-dismissible fade show app-alert d-flex align-items-start gap-2 mb-3
+            {% if attrs.level == 'error' %}alert-danger
+            {% elif attrs.level == 'warning' %}alert-warning
+            {% elif attrs.level == 'success' %}alert-success
+            {% else %}alert-info{% endif %}" role="alert">
+    {% if attrs.level == "error" %}
+        <i class="bi bi-exclamation-triangle-fill app-alert-icon" aria-hidden="true"></i>
+    {% elif attrs.level == "warning" %}
+        <i class="bi bi-exclamation-circle-fill app-alert-icon" aria-hidden="true"></i>
+    {% elif attrs.level == "success" %}
+        <i class="bi bi-check-circle-fill app-alert-icon" aria-hidden="true"></i>
+    {% else %}
+        <i class="bi bi-info-circle-fill app-alert-icon" aria-hidden="true"></i>
+    {% endif %}
+    <div class="app-alert-body flex-grow-1">
+        {% slot message %}{% endslot %}
+        {% slot %}{% endslot %}
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>

@@ -1,0 +1,70 @@
+{% extends "manager/base.html" %}
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-value">{{ active_devices }}</div>
+        <div class="stat-label">Active devices</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-value">{{ total_devices }}</div>
+        <div class="stat-label">Total devices</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-value">{{ total_accounts }}</div>
+        <div class="stat-label">Apple accounts</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body d-flex gap-2 flex-wrap">
+    <form method="post" action="{% url 'manager:fetch_all_locations' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat me-1"></i>Fetch all locations</button>
+    </form>
+    <a class="btn btn-outline-secondary" href="{% url 'manager:map' %}"><i class="bi bi-geo-alt me-1"></i>Map</a>
+  </div>
+</div>
+
+<h2>Apple accounts</h2>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Account</th><th>Email</th><th>Devices</th><th>State</th><th>Last fetch</th></tr>
+      </thead>
+      <tbody>
+        {% for account in accounts %}
+        <tr>
+          <td><a href="{{ account.get_absolute_url }}">{{ account.name }}</a></td>
+          <td>{{ account.email }}</td>
+          <td>{{ account.devices.count }}</td>
+          <td>{% if account.active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-warning">inactive</span>{% endif %}</td>
+          <td class="muted">{% if account.last_fetch_at %}{{ account.last_fetch_at|date:"Y-m-d H:i" }}
+            {% if account.last_fetch_status == "ok" %}<span class="badge text-bg-success">ok</span>
+            {% elif account.last_fetch_status == "needs_2fa" %}<span class="badge text-bg-warning">needs 2FA</span>
+            {% elif account.last_fetch_status %}<span class="badge text-bg-warning">{{ account.last_fetch_status }}</span>{% endif %}
+            {% else %}never{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-body-secondary py-4">No accounts yet. <a href="{% url 'manager:account_create' %}">Add your Apple account</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

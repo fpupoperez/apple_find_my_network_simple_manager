@@ -1,0 +1,29 @@
+{% extends "manager/base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Apple accounts</h1>
+  <a class="btn btn-primary" href="{% url 'manager:account_create' %}"><i class="bi bi-plus-lg me-1"></i>New account</a>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Devices</th><th>State</th><th>Updated</th></tr>
+      </thead>
+      <tbody>
+        {% for account in accounts %}
+        <tr>
+          <td><a href="{{ account.get_absolute_url }}">{{ account.name }}</a></td>
+          <td>{{ account.email }}</td>
+          <td>{{ account.device_count }}</td>
+          <td>{% if account.active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-warning">inactive</span>{% endif %}</td>
+          <td class="muted">{{ account.updated_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-body-secondary py-4 text-center">No accounts yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

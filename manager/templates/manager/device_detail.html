@@ -1,0 +1,82 @@
+{% extends "manager/base.html" %}
+{% block title %}{{ device.name }} — Find My manager{% endblock %}
+{% block content %}
+<h1 class="mb-4">{{ device.name }}</h1>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <table class="table table-borderless align-middle mb-0" style="max-width:720px;">
+      <tbody>
+        <tr><th class="w-25">Account</th><td><a href="{{ device.account.get_absolute_url }}">{{ device.account.name }}</a> <span class="muted">({{ device.account.email }})</span></td></tr>
+        <tr><th>State</th><td>{% if device.active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-warning">inactive</span>{% endif %}</td></tr>
+        <tr><th>Description</th><td class="muted">{{ device.description|default:"—"|linebreaksbr }}</td></tr>
+        <tr><th>Advertisement key (hex)</th><td class="mono">{{ device.advertisement_key_hex }}</td></tr>
+        <tr><th>Advertisement key (b64)</th><td class="mono">{{ device.advertisement_key_b64 }}</td></tr>
+        <tr><th>Private key (hex)</th><td class="mono">{{ device.private_key_hex }}</td></tr>
+        <tr><th>Hashed adv key (b64)</th><td class="mono">{{ device.hashed_key_b64 }}</td></tr>
+        <tr><th>Beacon</th><td class="muted">{{ device.broadcast_duration_sec }}s broadcast / {{ device.sleep_duration_min }}m deep sleep</td></tr>
+        <tr><th>Created</th><td class="muted">{{ device.created_at|date:"Y-m-d H:i" }}</td></tr>
+      </tbody>
+    </table>
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <a class="btn btn-outline-secondary" href="{% url 'manager:device_update' device.pk %}"><i class="bi bi-pencil me-1"></i>Edit</a>
+      <a class="btn btn-outline-secondary" href="{% url 'manager:map' %}?account={{ device.account.pk }}"><i class="bi bi-geo-alt me-1"></i>Map</a>
+      <a class="btn btn-outline-danger" href="{% url 'manager:device_delete' device.pk %}"><i class="bi bi-trash me-1"></i>Delete</a>
+    </div>
+    <div class="d-flex gap-2 flex-wrap mt-2">
+      <a class="btn btn-primary" href="{% url 'manager:device_export_micropython' device.pk %}"><i class="bi bi-filetype-py me-1"></i>Export MicroPython</a>
+      <a class="btn btn-primary" href="{% url 'manager:device_export_firmware' device.pk %}"><i class="bi bi-filetype-c me-1"></i>Export ESP-IDF</a>
+      <a class="btn btn-primary" href="{% url 'manager:device_export_arduino' device.pk %}"><i class="bi bi-filetype-ino me-1"></i>Export Arduino</a>
+      <form method="post" action="{% url 'manager:account_fetch_locations' device.account.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat me-1"></i>Fetch locations</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if latest %}
+<h2>Location history</h2>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>When</th><th>Latitude</th><th>Longitude</th><th>Accuracy</th><th>Battery</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="muted">{{ latest.timestamp|date:"Y-m-d H:i:s" }}</td>
+          <td class="mono">{{ latest.latitude|stringformat:".6f" }}</td>
+          <td class="mono">{{ latest.longitude|stringformat:".6f" }}</td>
+          <td>{% if latest.horizontal_accuracy %}{{ latest.horizontal_accuracy }} m{% else %}—{% endif %}</td>
+          <td>{{ latest.battery_level }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer d-flex flex-wrap align-items-center gap-2">
+    <span class="text-body-secondary small me-auto">Showing the most recent report for this device.</span>
+    <a class="btn btn-primary btn-sm" href="{% url 'manager:device_history' device.pk %}"><i class="bi bi-clock-history me-1"></i>View full history</a>
+  </div>
+</div>
+{% else %}
+<h2>Location history</h2>
+<div class="card">
+  <div class="card-body">
+    <p class="text-body-secondary mb-0">No location reports yet. Hit "Fetch locations" to pull reports
+    from Apple via the Find My network (run <code>python manage.py qcluster</code> to process background
+    jobs).</p>
+  </div>
+</div>
+{% endif %}
+
+<h2>macless-haystack key lines</h2>
+<div class="card">
+  <div class="card-body">
+    <pre class="mb-0">{% for line in device.macless_lines %}{{ line }}
+{% endfor %}</pre>
+    <p class="muted mt-3 mb-0">Drop these into the container's <code>data/*.keys</code> file. The device
+    only needs the <em>advertisement key</em>; the private key stays with macless-haystack to decrypt reports.</p>
+  </div>
+</div>
+{% endblock %}

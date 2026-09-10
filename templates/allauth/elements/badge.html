@@ -1,0 +1,12 @@
+{% load allauth %}
+{% if "success" in attrs.tags %}
+    <span class="badge text-bg-success">{% slot %}{% endslot %}</span>
+{% elif "warning" in attrs.tags %}
+    <span class="badge text-bg-warning">{% slot %}{% endslot %}</span>
+{% elif "danger" in attrs.tags %}
+    <span class="badge text-bg-danger">{% slot %}{% endslot %}</span>
+{% elif "primary" in attrs.tags %}
+    <span class="badge text-bg-primary">{% slot %}{% endslot %}</span>
+{% else %}
+    <span class="badge text-bg-secondary">{% slot %}{% endslot %}</span>
+{% endif %}

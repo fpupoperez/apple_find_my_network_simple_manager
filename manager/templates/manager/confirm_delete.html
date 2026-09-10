@@ -1,0 +1,24 @@
+{% extends "manager/base.html" %}
+{% block title %}Delete {{ object }} — Find My manager{% endblock %}
+{% block content %}
+<h1 class="mb-4">Delete {{ object }}</h1>
+<div class="card border-danger-subtle">
+  <div class="card-body">
+    <div class="d-flex align-items-start gap-3">
+      <div class="fs-3 text-danger-emphasis"><i class="bi bi-exclamation-triangle"></i></div>
+      <div>
+        <p class="mb-3">Are you sure you want to delete
+          <strong>{% if object.devices.exists %}{{ object.name }}{% else %}{{ object }}{% endif %}</strong>?
+          This action cannot be undone.</p>
+        <div class="d-flex gap-2">
+          <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Delete</button>
+          </form>
+          <a class="btn btn-outline-secondary" href="{{ object.get_absolute_url }}">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

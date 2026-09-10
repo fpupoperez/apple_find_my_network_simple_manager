@@ -1,0 +1,4 @@
+{% load allauth %}
+<img class="img-fluid{% if "qr" in attrs.tags %} bg-white p-3 rounded mb-3{% endif %}"
+     src="{{ attrs.src }}"
+     alt="{{ attrs.alt }}">

@@ -1,0 +1,30 @@
+{% extends "manager/base.html" %}
+{% load django_bootstrap5 %}
+{% block title %}Export Arduino sketch — {{ device.name }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">Export Arduino sketch</h1>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="mt-0">tag.ino — {{ device.name }}</h2>
+    <p class="text-body-secondary">Generates a native <code>tag.ino</code> for the Arduino IDE (ESP32
+    Arduino core) with this device's key baked in. Like the ESP-IDF export it uses the raw ESP-IDF BLE
+    API exposed by the Arduino core to set the BLE random static address that carries
+    <code>key[0:6]</code>, so Apple's Find My network can match the tag. The values below override the
+    device's saved beacon timing for the exported file only.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% bootstrap_form form %}
+      <div class="d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-download me-1"></i>Download tag.ino</button>
+        <a class="btn btn-outline-secondary" href="{{ device.get_absolute_url }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<h2>Preview</h2>
+<div class="card">
+  <div class="card-body p-0"><pre class="border-0 rounded-0 mb-0">{{ preview }}</pre></div>
+</div>
+{% endblock %}

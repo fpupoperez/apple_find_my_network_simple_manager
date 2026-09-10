@@ -1,0 +1,10 @@
+Django>=5.0
+djangorestframework>=3.15
+django-filter>=24.0
+django-cors-headers>=4.0
+django-datatables-view>=1.20
+django-allauth[mfa,webauthn]>=65.0
+django-bootstrap5>=26.0
+cryptography>=40.0
+django-q2>=1.11
+findmy>=0.10

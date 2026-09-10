@@ -1,0 +1,10 @@
+{% load allauth %}
+<section class="allauth-panel border rounded-3 p-3 mb-3">
+    <h2 class="h5 mb-2">{% slot title %}{% endslot %}</h2>
+    {% slot body %}{% endslot %}
+    {% if slots.actions %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            {% for action in slots.actions %}{{ action }}{% endfor %}
+        </div>
+    {% endif %}
+</section>

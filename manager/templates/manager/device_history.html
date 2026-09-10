@@ -1,0 +1,49 @@
+{% extends "manager/base.html" %}
+{% load static %}
+{% block title %}Location history — {{ device.name }} — Find My manager{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'manager/vendor/datatables/dataTables.bootstrap5.min.css' %}">
+{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'manager:device_detail' device.pk %}">{{ device.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Location history</li>
+  </ol>
+</nav>
+
+<h1 class="mb-3">Location history <span class="text-body-secondary fs-6 fw-normal">— {{ device.name }}</span></h1>
+
+<div class="card">
+  <div class="card-body py-3 d-flex flex-wrap align-items-center gap-2">
+    <span class="text-body-secondary small">
+      {{ location_count }} report{{ location_count|pluralize }}
+    </span>
+    <a class="btn btn-outline-secondary btn-sm ms-auto" href="{% url 'manager:device_detail' device.pk %}"><i class="bi bi-arrow-left me-1"></i>Back to device</a>
+  </div>
+  <div class="card-body pt-0">
+    <div class="table-responsive">
+      <table id="history-table" class="table table-hover align-middle mb-0 w-100"
+             data-source="{% url 'manager:device_history_data' device.pk %}"
+             data-page-length="{{ locations_per_page|default:25 }}">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Accuracy</th>
+            <th>Battery</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'manager/vendor/jquery/jquery.min.js' %}"></script>
+<script src="{% static 'manager/vendor/datatables/dataTables.min.js' %}"></script>
+<script src="{% static 'manager/vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'manager/js/device_history.js' %}"></script>
+{% endblock %}

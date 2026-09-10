@@ -1,0 +1,18 @@
+{% extends "manager/base.html" %}
+{% load django_bootstrap5 %}
+{% block title %}{{ title }} — Find My manager{% endblock %}
+{% block content %}
+<h1 class="mb-4">{{ title }}</h1>
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% bootstrap_form form %}
+      <div class="d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save</button>
+        <a class="btn btn-outline-secondary" href="{% if form.instance.pk %}{{ form.instance.get_absolute_url }}{% else %}{% url 'manager:account_list' %}{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

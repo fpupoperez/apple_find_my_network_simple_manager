@@ -1,0 +1,58 @@
+{% extends "manager/base.html" %}
+{% block title %}Devices — Find My manager{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Devices</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'manager:macless_keyfile' %}"><i class="bi bi-key me-1"></i>Download .keys (all active)</a>
+    <a class="btn btn-primary" href="{% url 'manager:device_create' %}"><i class="bi bi-plus-lg me-1"></i>New device</a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" class="row row-cols-lg-auto g-2 align-items-center">
+      <div class="col-12">
+        <label for="account-filter" class="col-form-label fw-semibold small me-2">Filter by account</label>
+      </div>
+      <div class="col-12">
+        <select id="account-filter" name="account" class="form-select form-select-sm" style="width:auto;">
+          <option value="">All accounts</option>
+          {% for account in accounts %}
+          <option value="{{ account.pk }}" {% if selected_account == account.pk %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Name</th><th>Account</th><th>State</th><th>Key</th><th>Beacon</th><th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+        <tr>
+          <td><a href="{{ device.get_absolute_url }}">{{ device.name }}</a></td>
+          <td><a href="{{ device.account.get_absolute_url }}">{{ device.account.name }}</a></td>
+          <td>{% if device.active %}<span class="badge text-bg-success">active</span>{% else %}<span class="badge text-bg-warning">inactive</span>{% endif %}</td>
+          <td class="mono small">{% if device.advertisement_key_hex %}{{ device.advertisement_key_hex }}{% else %}<span class="badge text-bg-warning">no key</span>{% endif %}</td>
+          <td class="muted">{{ device.broadcast_duration_sec }}s / {{ device.sleep_duration_min }}m</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'manager:device_export_arduino' device.pk %}">Export ino</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-body-secondary py-4 text-center">No devices yet. <a href="{% url 'manager:device_create' %}">Create one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

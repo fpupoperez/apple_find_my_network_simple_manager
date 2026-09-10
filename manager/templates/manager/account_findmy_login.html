@@ -1,0 +1,69 @@
+{% extends "manager/base.html" %}
+{% block title %}Sign in to Apple — {{ account.name }}{% endblock %}
+{% block content %}
+<p class="small mb-3"><a href="{{ account.get_absolute_url }}">&larr; Back to {{ account.name }}</a></p>
+<h1 class="mb-4">Sign in to Apple</h1>
+
+<div class="card">
+  <div class="card-body">
+    <p class="text-body-secondary mb-3">
+      This runs the same Apple login as <code>python manage.py login_findmy</code>,
+      including retries on transient Apple errors, and caches the session so
+      location fetches can load this account's data.
+    </p>
+
+    {% if login_queued %}
+    <p class="mb-3">Sign-in is running in the background. Refresh this page when Apple responds.</p>
+    <a class="btn btn-outline-secondary" href="{{ account.get_absolute_url }}">Back to account</a>
+    {% elif login_in_progress %}
+    <h2 class="h5 mb-3">Two-factor authentication</h2>
+    <p class="mb-3">Choose how you want to receive the verification code, then enter it below.</p>
+
+    <div class="d-flex gap-2 flex-wrap mb-4">
+      {% for method in methods %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request">
+        <input type="hidden" name="method" value="{{ method.index }}">
+        <button type="submit" class="btn {% if requested.index == method.index %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          {% if method.kind == "sms" %}<i class="bi bi-chat-dots me-1"></i>{% else %}<i class="bi bi-phone me-1"></i>{% endif %}
+          {{ method.label }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+
+    {% if requested %}
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="submit">
+      <input type="hidden" name="method" value="{{ requested.index }}">
+      <div class="mb-3">
+        <label class="form-label" for="id_code">Verification code from {{ requested.label }}</label>
+        <input class="form-control" id="id_code" name="code" type="text" inputmode="numeric"
+               autocomplete="one-time-code" required autofocus placeholder="123456">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-shield-check me-1"></i>Verify</button>
+    </form>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <button type="submit" class="btn btn-outline-secondary">Cancel</button>
+    </form>
+    {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="start">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-box-arrow-in-right me-1"></i>Queue Apple sign-in
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ account.get_absolute_url }}">Cancel</a>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% load django_bootstrap5 %}
+{% for message in messages %}
+    {% with alert_type=message|bootstrap_message_alert_type %}
+        <div class="alert alert-{{ alert_type }} alert-dismissible fade show app-alert d-flex align-items-start gap-2 mb-2" role="alert">
+            {% if alert_type == "success" %}
+                <i class="bi bi-check-circle-fill app-alert-icon" aria-hidden="true"></i>
+            {% elif alert_type == "danger" %}
+                <i class="bi bi-exclamation-triangle-fill app-alert-icon" aria-hidden="true"></i>
+            {% elif alert_type == "warning" %}
+                <i class="bi bi-exclamation-circle-fill app-alert-icon" aria-hidden="true"></i>
+            {% else %}
+                <i class="bi bi-info-circle-fill app-alert-icon" aria-hidden="true"></i>
+            {% endif %}
+            <div class="app-alert-body flex-grow-1">{{ message }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endwith %}
+{% endfor %}

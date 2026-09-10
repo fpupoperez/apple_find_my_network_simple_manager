@@ -1,0 +1,66 @@
+# Local Django settings (copy from config/settings.dist.py)
+config/settings.py
+
+# Secrets and environment
+.env
+.env.*
+!.env.example
+
+# Apple Find My session cache (plaintext tokens, anisette libs, pending 2FA)
+.findmy/
+
+# SQLite (users, Apple accounts, keys, django-q2 jobs)
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.venv
+
+# Test / coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Django
+/staticfiles/
+/media/
+*.log
+local_settings.py
+
+# Typical firmware / key exports written at the repo root
+/main.py
+/main.c
+/tag.ino
+/*.keys
+/config.ini
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
