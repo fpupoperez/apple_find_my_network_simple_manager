@@ -28,6 +28,19 @@ document.addEventListener("DOMContentLoaded", function () {
       { className: "mono" },
       null,
       null,
+      {
+        orderable: false,
+        searchable: false,
+        className: "text-nowrap text-end",
+        render: function (data) {
+          if (!data) {
+            return "";
+          }
+          return '<a class="btn btn-outline-secondary btn-sm" href="' + data
+            + '" title="Show this report on the map">'
+            + '<i class="bi bi-geo-alt me-1"></i>Map</a>';
+        },
+      },
     ],
     language: {
       emptyTable: "No reports yet for this device.",

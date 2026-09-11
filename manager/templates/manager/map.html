@@ -6,23 +6,58 @@
 
 <div class="card mb-3">
   <div class="card-body py-3">
-    <form method="get" class="row row-cols-lg-auto g-2 align-items-center">
-      <div class="col-12">
-        <label for="account" class="col-form-label fw-semibold small me-2">Filter by account</label>
+    <form method="get" class="map-filters">
+      <div class="map-filters-fields">
+        <div class="map-filters-field map-filters-account">
+          <label for="account" class="form-label fw-semibold small mb-1">Account</label>
+          <select id="account" name="account" class="form-select form-select-sm">
+            <option value="">All accounts</option>
+            {% for account in accounts %}
+              <option value="{{ account.pk }}"{% if account.pk|stringformat:"s" == selected_account %} selected{% endif %}>{{ account.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="map-filters-field map-filters-devices">
+          <label for="device" class="form-label fw-semibold small mb-1">Devices</label>
+          <select id="device" name="device" class="form-select form-select-sm map-device-select" multiple
+                  placeholder="All devices" autocomplete="off">
+            {% for device in map_devices %}
+              <option value="{{ device.pk }}" data-account="{{ device.account_id }}"
+                      {% if device.pk|stringformat:"s" in selected_devices %} selected{% endif %}>
+                {{ device.name }} ({{ device.account.name }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="map-filters-field">
+          <label for="date-from" class="form-label fw-semibold small mb-1">From</label>
+          <input type="date" id="date-from" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+        </div>
+        <div class="map-filters-field">
+          <label for="date-to" class="form-label fw-semibold small mb-1">To</label>
+          <input type="date" id="date-to" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+        </div>
+        <div class="map-filters-actions">
+          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'manager:map' %}">Reset</a>
+        </div>
       </div>
-      <div class="col-12">
-        <select id="account" name="account" class="form-select form-select-sm" style="width:auto;">
-          <option value="">All accounts</option>
-          {% for account in accounts %}
-            <option value="{{ account.pk }}"{% if account.pk|stringformat:"s" == selected_account %} selected{% endif %}>{{ account.name }}</option>
+      {% if map_data.focus %}
+      <input type="hidden" name="location" value="{{ map_data.focus.location_id }}">
+      {% endif %}
+      <div class="map-filters-meta">
+        <span class="text-body-secondary small">
+          {{ devices_with_data }} device(s) with a known location{% if range_selected %} in this range{% endif %}{% if devices_no_data %}, {{ devices_no_data }} without data yet{% endif %}.
+        </span>
+        {% if map_data.routes %}
+        <div class="map-filters-legend">
+          <span class="small"><span class="route-swatch" style="background:#3fb950"></span>Start</span>
+          <span class="small"><span class="route-swatch" style="background:#f85149"></span>End</span>
+          {% for route in map_data.routes %}
+          <span class="small"><span class="route-swatch" style="background:{{ route.color }}"></span>{{ route.name }}</span>
           {% endfor %}
-        </select>
-      </div>
-      <div class="col-12">
-        <button type="submit" class="btn btn-sm btn-outline-secondary">Apply</button>
-      </div>
-      <div class="col-12 ms-lg-auto">
-        <span class="text-body-secondary small">{{ devices_with_data }} device(s) with a known location{% if devices_no_data %}, {{ devices_no_data }} without data yet{% endif %}.</span>
+        </div>
+        {% endif %}
       </div>
     </form>
   </div>
@@ -34,123 +69,16 @@
   </div>
 </div>
 
-{{ markers|json_script:"markers-data" }}
+{{ map_data|json_script:"map-data" }}
 {% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'manager/vendor/maplibre/maplibre-gl.css' %}">
+<link rel="stylesheet" href="{% static 'manager/vendor/tom-select/tom-select.bootstrap5.min.css' %}">
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'manager/vendor/tom-select/tom-select.complete.min.js' %}"></script>
 <script src="{% static 'manager/vendor/maplibre/maplibre-gl.js' %}"></script>
-<script>
-  (async function () {
-    const markers = JSON.parse(document.getElementById("markers-data").textContent);
-
-    // OpenFreeMap's "dark" style references sprite images (e.g. the fill
-    // pattern "wood-pattern") that are missing from its sprite. Synthesise
-    // fallbacks before the map is built so handlers can stay synchronous.
-    const fallbackImages = {};
-
-    function makePatternCanvas() {
-      const c = document.createElement("canvas");
-      c.width = c.height = 64;
-      const x = c.getContext("2d");
-      x.fillStyle = "rgba(101, 105, 61, 0.28)";
-      x.fillRect(0, 0, 64, 64);
-      x.strokeStyle = "rgba(48, 42, 24, 0.5)";
-      x.lineWidth = 1;
-      for (let i = 0; i < 9; i++) {
-        const y = (i % 3) * 22 + 11;
-        x.beginPath();
-        x.moveTo(0, y);
-        x.bezierCurveTo(16, y - 4, 48, y + 4, 64, y - 2);
-        x.stroke();
-      }
-      return c;
-    }
-
-    function makeGlyphCanvas() {
-      const c = document.createElement("canvas");
-      c.width = c.height = 16;
-      const x = c.getContext("2d");
-      x.fillStyle = "rgba(88, 166, 255, 0.85)";
-      x.beginPath();
-      x.arc(8, 8, 5, 0, Math.PI * 2);
-      x.fill();
-      return c;
-    }
-
-    // ImageBitmap is the proper source for WebGL texImage2D — avoids the
-    // "Alpha-premult and y-flip are deprecated for non-DOM-Element uploads"
-    // warning that ImageData triggers.
-    [fallbackImages.pattern, fallbackImages.glyph] =
-      await Promise.all([
-        createImageBitmap(makePatternCanvas()),
-        createImageBitmap(makeGlyphCanvas()),
-      ]);
-
-    // Defer map construction until the page is fully loaded: MapLibre
-    // measures its container synchronously, and doing that before load forces
-    // a layout that Chrome warns about ("Layout was forced before the page
-    // was fully loaded...") and can flash unstyled content.
-    function initMap() {
-      const map = new maplibregl.Map({
-        container: "map",
-        style: "https://tiles.openfreemap.org/styles/dark",
-        center: [-3.0, 40.0],
-        zoom: 4,
-      });
-      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      if (["127.0.0.1", "localhost"].includes(window.location.hostname)) {
-        window.__map = map;
-      }
-
-      map.on("load", () => {
-        const style = map.getStyle();
-        const pats = new Set();
-        for (const l of style.layers) {
-          const p = l.paint;
-          if (p && p["fill-pattern"]) pats.add(p["fill-pattern"]);
-        }
-        for (const id of pats) {
-          if (!map.hasImage(id)) map.addImage(id, fallbackImages.pattern);
-        }
-      });
-
-      map.on("styleimagemissing", (e) => {
-        const id = e.id;
-        if (map.hasImage(id)) return;
-        map.addImage(id, id.endsWith("-pattern") ? fallbackImages.pattern : fallbackImages.glyph);
-      });
-
-      if (!markers.length) return;
-
-      const bounds = new maplibregl.LngLatBounds();
-      for (const m of markers) {
-        const html = "<div class='fmp-popup'>"
-          + "<a class='fmp-popup-title' href='" + m.url + "'>" + m.name + "</a>"
-          + "<div class='fmp-popup-row'><i class='bi bi-person'></i><span>" + m.account + "</span></div>"
-          + "<div class='fmp-popup-row'><i class='bi bi-clock'></i><span>" + new Date(m.ts).toLocaleString() + "</span></div>"
-          + (m.accuracy != null ? "<div class='fmp-popup-row'><i class='bi bi-crosshair'></i><span>" + m.accuracy.toFixed(0) + " m</span></div>" : "")
-          + "<div class='fmp-popup-row'><i class='bi bi-battery-charging'></i><span>" + m.battery + "</span></div>"
-          + "</div>";
-        new maplibregl.Marker({ color: "#58a6ff" })
-          .setLngLat([m.lon, m.lat])
-          .setPopup(new maplibregl.Popup({ offset: 28, closeButton: false }))
-          .addTo(map)
-          .getPopup()
-          .setHTML(html);
-        bounds.extend([m.lon, m.lat]);
-      }
-      map.fitBounds(bounds, { padding: 48, maxZoom: 16 });
-    }
-
-    if (document.readyState === "complete") {
-      initMap();
-    } else {
-      window.addEventListener("load", initMap);
-    }
-  })();
-</script>
+<script src="{% static 'manager/js/map.js' %}"></script>
 {% endblock %}

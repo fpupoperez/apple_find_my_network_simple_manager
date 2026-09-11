@@ -243,6 +243,126 @@ em.errorlist,
   height: 520px;
   border-radius: 0.6rem;
 }
+.map-filters-fields {
+  display: grid;
+  grid-template-columns: minmax(10.5rem, 0.85fr) minmax(14rem, 1.6fr) minmax(10.75rem, 12.5rem) minmax(10.75rem, 12.5rem) auto;
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+.map-filters-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.map-filters-field .form-select,
+.map-filters-field .form-control,
+.map-filters-field .ts-wrapper {
+  width: 100%;
+}
+.map-filters-field input[type="date"] {
+  min-width: 0;
+}
+.map-filters-devices .map-device-select,
+.map-filters-devices .ts-wrapper.map-device-select,
+.map-filters-devices .ts-wrapper.form-select-sm.map-device-select {
+  min-width: 0;
+  max-width: none;
+}
+.map-filters-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 1px;
+}
+.map-filters-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1.25rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+.map-filters-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+@media (max-width: 991.98px) {
+  .map-filters-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .map-filters-account,
+  .map-filters-devices {
+    grid-column: 1 / -1;
+  }
+  .map-filters-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+@media (max-width: 575.98px) {
+  .map-filters-fields {
+    grid-template-columns: 1fr;
+  }
+}
+.ts-wrapper.multi .ts-control > div {
+  overflow: hidden;
+}
+[data-bs-theme="dark"] .ts-wrapper.multi .ts-control > div {
+  background: rgba(88, 166, 255, 0.16);
+  color: #e6edf3;
+  border: 1px solid rgba(88, 166, 255, 0.28);
+}
+[data-bs-theme="dark"] .ts-wrapper.multi .ts-control > div.active {
+  background: rgba(88, 166, 255, 0.28);
+  color: #ffffff;
+}
+[data-bs-theme="dark"] .ts-wrapper.plugin-remove_button:not(.rtl) .item .remove {
+  border-left-color: rgba(88, 166, 255, 0.28);
+  color: #8b949e;
+}
+[data-bs-theme="dark"] .ts-wrapper.plugin-remove_button .item .remove:hover {
+  background: rgba(248, 81, 73, 0.18);
+  color: #f85149;
+}
+[data-bs-theme="dark"] .ts-dropdown {
+  background: #161b22;
+  border-color: #30363d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+[data-bs-theme="dark"] .ts-dropdown .option,
+[data-bs-theme="dark"] .ts-dropdown .no-results {
+  color: #c9d1d9;
+}
+[data-bs-theme="dark"] .ts-dropdown .active {
+  background-color: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+}
+[data-bs-theme="dark"] .ts-control,
+[data-bs-theme="dark"] .ts-control input,
+[data-bs-theme="dark"] .form-select .ts-control,
+[data-bs-theme="dark"] .form-select .ts-control input,
+[data-bs-theme="dark"] .form-select .ts-dropdown {
+  color: #c9d1d9;
+}
+[data-bs-theme="dark"] .focus .ts-control {
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.2);
+}
+[data-bs-theme="dark"] .plugin-clear_button .clear-button {
+  color: #8b949e;
+}
+.route-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: -0.05rem;
+}
 
 /* High-contrast popup card */
 .maplibregl-popup-content {

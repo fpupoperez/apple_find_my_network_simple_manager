@@ -1,6 +1,7 @@
 """Views for the Find My manager."""
 
 from datetime import datetime, time, timedelta
+from urllib.parse import urlencode
 from uuid import UUID
 
 from django.contrib import messages
@@ -8,6 +9,7 @@ from django.contrib.auth.views import LoginView
 from django.db.models import ProtectedError, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django_datatables_view.base_datatable_view import BaseDatatableView
 
@@ -263,6 +265,56 @@ def _aware_day_start(day):
     return timezone.make_aware(datetime.combine(day, time.min))
 
 
+def _parse_query_uuids(values):
+    """Return valid UUIDs from a list of query values."""
+    parsed = []
+    for value in values:
+        if not value:
+            continue
+        try:
+            parsed.append(UUID(str(value)))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return parsed
+
+
+ROUTE_COLORS = (
+    "#58a6ff", "#3fb950", "#d29922", "#f85149",
+    "#a371f7", "#39c5cf", "#ff7b72", "#d2a8ff",
+)
+
+
+def _route_color(index):
+    return ROUTE_COLORS[index % len(ROUTE_COLORS)]
+
+
+def _location_map_url(location):
+    """Map URL that opens this report for its device on that local day."""
+    when = timezone.localtime(location.timestamp).date()
+    query = urlencode({
+        "device": str(location.device_id),
+        "location": str(location.pk),
+        "date_from": when.isoformat(),
+        "date_to": when.isoformat(),
+    })
+    return "{}?{}".format(reverse("manager:map"), query)
+
+
+def _map_marker_payload(loc, color):
+    return {
+        "id": str(loc.device_id),
+        "name": loc.device.name,
+        "account": loc.device.account.name,
+        "lat": loc.latitude,
+        "lon": loc.longitude,
+        "ts": loc.timestamp.isoformat(),
+        "accuracy": loc.horizontal_accuracy,
+        "battery": loc.battery_level,
+        "url": loc.device.get_absolute_url(),
+        "color": color,
+    }
+
+
 def device_history(request, pk):
     """Location history page; rows are loaded by DataTables via AJAX."""
     device = _get_device(request, pk)
@@ -282,6 +334,7 @@ class DeviceHistoryDatatable(BaseDatatableView):
         "longitude",
         "horizontal_accuracy",
         "battery_level",
+        "map_link",
     ]
     order_columns = [
         "timestamp",
@@ -289,6 +342,7 @@ class DeviceHistoryDatatable(BaseDatatableView):
         "longitude",
         "horizontal_accuracy",
         "status",
+        "",
     ]
     max_display_length = 100
 
@@ -333,6 +387,8 @@ class DeviceHistoryDatatable(BaseDatatableView):
             return "{} m".format(row.horizontal_accuracy)
         if column == "battery_level":
             return row.battery_level
+        if column == "map_link":
+            return _location_map_url(row)
         return super().render_column(row, column)
 
 
@@ -563,40 +619,110 @@ def fetch_all_locations(request):
 
 
 def map_view(request):
-    """Show the latest decrypted location of every active device on a Leaflet map."""
-    account_id = request.GET.get("account")
+    """Show latest positions, and routes when a date range is selected."""
+    account_ids = _parse_query_uuids([request.GET.get("account")])
+    account_id = str(account_ids[0]) if account_ids else ""
+    date_from = _parse_query_date(request.GET.get("date_from"))
+    date_to = _parse_query_date(request.GET.get("date_to"))
+    range_selected = date_from is not None or date_to is not None
 
-    latest = (DeviceLocation.objects.select_related("device__account")
-              .for_user(request.user)
-              .filter(device__active=True)
-              .order_by("device_id", "-timestamp"))
+    scoped_devices = _devices(request).filter(active=True).select_related("account")
     if account_id:
-        latest = latest.filter(device__account_id=account_id)
-    markers = {}
-    for loc in latest:
-        markers.setdefault(loc.device_id, loc)
-    if not markers:
-        messages.info(request, "No location data yet. Use 'Fetch now' to pull reports from Apple.")
-
-    marker_data = [
-        {
-            "name": loc.device.name,
-            "account": loc.device.account.name,
-            "lat": loc.latitude,
-            "lon": loc.longitude,
-            "ts": loc.timestamp.isoformat(),
-            "accuracy": loc.horizontal_accuracy,
-            "battery": loc.battery_level,
-            "url": loc.device.get_absolute_url(),
-        }
-        for loc in sorted(markers.values(), key=lambda l: (l.device.account.name, l.device.name))
+        scoped_devices = scoped_devices.filter(account_id=account_id)
+    scoped_pks = set(scoped_devices.values_list("pk", flat=True))
+    selected_device_ids = [
+        device_id for device_id in _parse_query_uuids(request.GET.getlist("device"))
+        if device_id in scoped_pks
     ]
 
-    devices_no_data = _devices(request).filter(active=True, locations__isnull=True).count()
+    focus_loc = None
+    focus_ids = _parse_query_uuids([request.GET.get("location")])
+    if focus_ids:
+        focus_loc = (
+            DeviceLocation.objects.select_related("device__account")
+            .for_user(request.user)
+            .filter(pk=focus_ids[0], device__active=True)
+            .first()
+        )
+        if focus_loc and focus_loc.device_id not in scoped_pks:
+            focus_loc = None
+        elif focus_loc and not selected_device_ids:
+            selected_device_ids = [focus_loc.device_id]
+        elif focus_loc and focus_loc.device_id not in selected_device_ids:
+            focus_loc = None
+
+    if selected_device_ids:
+        scoped_devices = scoped_devices.filter(pk__in=selected_device_ids)
+
+    locations = (DeviceLocation.objects.select_related("device__account")
+                 .for_user(request.user)
+                 .filter(device__active=True, device_id__in=scoped_devices.values("pk")))
+    if date_from:
+        locations = locations.filter(timestamp__gte=_aware_day_start(date_from))
+    if date_to:
+        locations = locations.filter(timestamp__lt=_aware_day_start(date_to) + timedelta(days=1))
+
+    routes = []
+    if range_selected:
+        grouped = {}
+        for loc in locations.order_by("timestamp", "pk"):
+            grouped.setdefault(loc.device_id, []).append(loc)
+        markers = {device_id: points[-1] for device_id, points in grouped.items()}
+    else:
+        grouped = {}
+        markers = {}
+        for loc in locations.order_by("device_id", "-timestamp"):
+            markers.setdefault(loc.device_id, loc)
+
+    if not markers and not focus_loc:
+        messages.info(request, "No location data yet. Use 'Fetch now' to pull reports from Apple.")
+
+    sorted_locs = sorted(
+        markers.values(), key=lambda loc: (loc.device.account.name, loc.device.name))
+    colors = {loc.device_id: _route_color(index) for index, loc in enumerate(sorted_locs)}
+    marker_data = [_map_marker_payload(loc, colors[loc.device_id]) for loc in sorted_locs]
+
+    if range_selected:
+        for loc in sorted_locs:
+            points = grouped.get(loc.device_id, [])
+            if len(points) < 2:
+                continue
+            routes.append({
+                "id": str(loc.device_id),
+                "name": loc.device.name,
+                "color": colors[loc.device_id],
+                "coordinates": [[point.longitude, point.latitude] for point in points],
+                "points": [
+                    {
+                        "lon": point.longitude,
+                        "lat": point.latitude,
+                        "ts": point.timestamp.isoformat(),
+                        "accuracy": point.horizontal_accuracy,
+                        "battery": point.battery_level,
+                    }
+                    for point in points
+                ],
+                "start_ts": points[0].timestamp.isoformat(),
+                "end_ts": points[-1].timestamp.isoformat(),
+            })
+
+    devices_with_data = len(markers)
+    devices_no_data = scoped_devices.exclude(pk__in=markers.keys()).count()
+    focus = None
+    if focus_loc:
+        focus = _map_marker_payload(focus_loc, "#d29922")
+        focus["location_id"] = str(focus_loc.pk)
+        focus["role"] = "Selected report"
     return render(request, "manager/map.html", {
-        "markers": marker_data,
+        "map_data": {"markers": marker_data, "routes": routes, "focus": focus},
         "accounts": _accounts(request).filter(devices__active=True).distinct(),
+        "map_devices": _devices(request).filter(active=True).select_related("account")
+            .order_by("account__name", "name"),
         "selected_account": account_id,
-        "devices_with_data": len(markers),
+        "selected_devices": {str(device_id) for device_id in selected_device_ids},
+        "date_from": date_from.isoformat() if date_from else "",
+        "date_to": date_to.isoformat() if date_to else "",
+        "range_selected": range_selected,
+        "devices_with_data": devices_with_data,
         "devices_no_data": devices_no_data,
     })

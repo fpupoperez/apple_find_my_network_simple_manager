@@ -544,7 +544,7 @@ class ViewTests(TestCase):
         earlier = later - timezone.timedelta(hours=1)
         DeviceLocation.objects.create(device=self.device, timestamp=earlier,
                                       latitude=40.0, longitude=-3.5, horizontal_accuracy=12.0)
-        DeviceLocation.objects.create(device=self.device, timestamp=later,
+        later_loc = DeviceLocation.objects.create(device=self.device, timestamp=later,
                                       latitude=41.0, longitude=-2.5, horizontal_accuracy=8.0)
         resp = self.client.get(reverse("manager:device_history", args=[self.device.pk]))
         self.assertEqual(resp.status_code, 200)
@@ -568,6 +568,10 @@ class ViewTests(TestCase):
         second_row = "".join(str(cell) for cell in body["data"][1])
         self.assertIn("41.000000", first_row)
         self.assertIn("40.000000", second_row)
+        map_url = reverse("manager:map")
+        self.assertIn(map_url, first_row)
+        self.assertIn("location={}".format(later_loc.pk), first_row)
+        self.assertIn("device={}".format(self.device.pk), first_row)
 
     def test_device_history_paginates(self):
         base = timezone.now()
@@ -987,6 +991,87 @@ class MapAndFetchViewTests(TestCase):
         self.assertContains(resp, self.device.name)
         self.assertContains(resp, "40.1")
         self.assertNotContains(resp, "40.2")
+
+    def test_map_focuses_selected_location(self):
+        from datetime import timedelta
+        now = timezone.now()
+        older = DeviceLocation.objects.create(
+            device=self.device, timestamp=now - timedelta(hours=3),
+            latitude=39.111, longitude=-4.222)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=now, latitude=40.1, longitude=-3.0)
+        resp = self.client.get(reverse("manager:map"), {
+            "device": str(self.device.pk),
+            "location": str(older.pk),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "39.111")
+        self.assertContains(resp, str(older.pk))
+        self.assertContains(resp, "Selected report")
+
+    def test_map_date_range_includes_route(self):
+        from datetime import datetime, timedelta, timezone as dt_timezone
+        start = datetime(2024, 3, 10, 10, 0, tzinfo=dt_timezone.utc)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=start, latitude=40.2, longitude=-3.1)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=start + timedelta(hours=2),
+            latitude=40.1, longitude=-3.0)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=start + timedelta(days=10),
+            latitude=41.9, longitude=-2.0)
+        resp = self.client.get(reverse("manager:map"), {
+            "date_from": "2024-03-10", "date_to": "2024-03-10",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "40.1")
+        self.assertContains(resp, "40.2")
+        self.assertNotContains(resp, "41.9")
+        self.assertContains(resp, '"routes"')
+        self.assertContains(resp, "-3.1")
+        self.assertContains(resp, "in this range")
+        self.assertContains(resp, '"points"')
+        mid = start + timedelta(hours=1)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=mid, latitude=40.15, longitude=-3.05)
+        with_mid = self.client.get(reverse("manager:map"), {
+            "date_from": "2024-03-10", "date_to": "2024-03-10",
+        })
+        self.assertContains(with_mid, "40.15")
+        self.assertContains(with_mid, "2024-03-10T11:00:00")
+
+    def test_map_filters_selected_device(self):
+        from datetime import datetime, timedelta, timezone as dt_timezone
+        other_private, other_public = keygen.generate_keypair()
+        other = Device.objects.create(
+            account=self.account, name="bike",
+            private_key_hex=other_private.hex(),
+            advertisement_key_hex=other_public.hex())
+        start = datetime(2024, 4, 1, 12, 0, tzinfo=dt_timezone.utc)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=start, latitude=40.123, longitude=-3.001)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=start + timedelta(hours=1),
+            latitude=40.456, longitude=-3.002)
+        DeviceLocation.objects.create(
+            device=other, timestamp=start, latitude=51.111, longitude=-2.501)
+        DeviceLocation.objects.create(
+            device=other, timestamp=start + timedelta(hours=1),
+            latitude=51.222, longitude=-2.502)
+        resp = self.client.get(reverse("manager:map"), {
+            "device": str(self.device.pk),
+            "date_from": "2024-04-01",
+            "date_to": "2024-04-01",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "40.123")
+        self.assertContains(resp, "40.456")
+        self.assertNotContains(resp, "51.111")
+        self.assertNotContains(resp, "51.222")
+        self.assertContains(resp, 'id="device"')
+        self.assertContains(resp, 'id="date-from"')
+        self.assertContains(resp, "tom-select.complete.min.js")
+        self.assertContains(resp, "tom-select.bootstrap5.min.css")
 
     def test_fetch_all_queues_for_accounts_with_password(self):
         url = reverse("manager:fetch_all_locations")
