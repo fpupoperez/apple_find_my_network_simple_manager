@@ -4,7 +4,10 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
   const pageLength = parseInt(table.getAttribute("data-page-length"), 10) || 25;
-  window.jQuery(table).DataTable({
+  const dateFrom = document.getElementById("date-from");
+  const dateTo = document.getElementById("date-to");
+  const dateClear = document.getElementById("date-clear");
+  const dt = window.jQuery(table).DataTable({
     serverSide: true,
     processing: true,
     searching: true,
@@ -14,6 +17,10 @@ document.addEventListener("DOMContentLoaded", function () {
     ajax: {
       url: table.getAttribute("data-source"),
       type: "GET",
+      data: function (params) {
+        params.date_from = dateFrom ? dateFrom.value : "";
+        params.date_to = dateTo ? dateTo.value : "";
+      },
     },
     columns: [
       { className: "muted" },
@@ -37,4 +44,26 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     },
   });
+
+  function reloadHistory() {
+    dt.ajax.reload();
+  }
+
+  if (dateFrom) {
+    dateFrom.addEventListener("change", reloadHistory);
+  }
+  if (dateTo) {
+    dateTo.addEventListener("change", reloadHistory);
+  }
+  if (dateClear) {
+    dateClear.addEventListener("click", function () {
+      if (dateFrom) {
+        dateFrom.value = "";
+      }
+      if (dateTo) {
+        dateTo.value = "";
+      }
+      reloadHistory();
+    });
+  }
 });

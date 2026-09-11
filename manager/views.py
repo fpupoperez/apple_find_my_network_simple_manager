@@ -1,5 +1,6 @@
 """Views for the Find My manager."""
 
+from datetime import datetime, time, timedelta
 from uuid import UUID
 
 from django.contrib import messages
@@ -248,6 +249,20 @@ def device_detail(request, pk):
 LOCATIONS_PER_PAGE = 25
 
 
+def _parse_query_date(value):
+    """Return a ``date`` from a ``YYYY-MM-DD`` query param, or ``None``."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def _aware_day_start(day):
+    return timezone.make_aware(datetime.combine(day, time.min))
+
+
 def device_history(request, pk):
     """Location history page; rows are loaded by DataTables via AJAX."""
     device = _get_device(request, pk)
@@ -285,6 +300,7 @@ class DeviceHistoryDatatable(BaseDatatableView):
         return self.device.locations.all()
 
     def filter_queryset(self, qs):
+        qs = self._filter_by_date(qs)
         search = (self.request.GET.get("search[value]") or "").strip()
         if not search:
             return qs
@@ -293,6 +309,15 @@ class DeviceHistoryDatatable(BaseDatatableView):
             | Q(longitude__icontains=search)
             | Q(horizontal_accuracy__icontains=search)
         )
+
+    def _filter_by_date(self, qs):
+        date_from = _parse_query_date(self.request.GET.get("date_from"))
+        date_to = _parse_query_date(self.request.GET.get("date_to"))
+        if date_from:
+            qs = qs.filter(timestamp__gte=_aware_day_start(date_from))
+        if date_to:
+            qs = qs.filter(timestamp__lt=_aware_day_start(date_to) + timedelta(days=1))
+        return qs
 
     def render_column(self, row, column):
         if column == "timestamp":

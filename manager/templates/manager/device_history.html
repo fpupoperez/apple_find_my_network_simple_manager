@@ -19,6 +19,13 @@
     <span class="text-body-secondary small">
       {{ location_count }} report{{ location_count|pluralize }}
     </span>
+    <form id="history-date-filter" class="d-flex flex-wrap align-items-center gap-2 ms-md-3" onsubmit="return false;">
+      <label for="date-from" class="col-form-label fw-semibold small mb-0">From</label>
+      <input type="date" id="date-from" name="date_from" class="form-control form-control-sm" style="width:auto;">
+      <label for="date-to" class="col-form-label fw-semibold small mb-0">To</label>
+      <input type="date" id="date-to" name="date_to" class="form-control form-control-sm" style="width:auto;">
+      <button type="button" id="date-clear" class="btn btn-sm btn-outline-secondary">Clear dates</button>
+    </form>
     <a class="btn btn-outline-secondary btn-sm ms-auto" href="{% url 'manager:device_detail' device.pk %}"><i class="bi bi-arrow-left me-1"></i>Back to device</a>
   </div>
   <div class="card-body pt-0">

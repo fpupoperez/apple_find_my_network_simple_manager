@@ -1,3 +1,4 @@
+from datetime import datetime, timezone as dt_timezone
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -550,6 +551,8 @@ class ViewTests(TestCase):
         self.assertContains(resp, "Location history")
         self.assertContains(resp, "2 reports")
         self.assertContains(resp, "history-table")
+        self.assertContains(resp, 'id="date-from"')
+        self.assertContains(resp, 'id="date-to"')
         data_url = reverse("manager:device_history_data", args=[self.device.pk])
         self.assertContains(resp, data_url)
         payload = self.client.get(data_url, {
@@ -597,6 +600,38 @@ class ViewTests(TestCase):
         })
         self.assertEqual(empty.status_code, 200)
         self.assertEqual(empty.json()["data"], [])
+
+    def test_device_history_filters_by_date(self):
+        older = datetime(2024, 1, 10, 12, 0, tzinfo=dt_timezone.utc)
+        newer = datetime(2024, 3, 20, 12, 0, tzinfo=dt_timezone.utc)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=older,
+            latitude=40.0, longitude=-3.5)
+        DeviceLocation.objects.create(
+            device=self.device, timestamp=newer,
+            latitude=41.0, longitude=-2.5)
+        data_url = reverse("manager:device_history_data", args=[self.device.pk])
+        params = {
+            "draw": 1, "start": 0, "length": 25,
+            "order[0][column]": 0, "order[0][dir]": "desc",
+        }
+        january = self.client.get(data_url, {**params, "date_from": "2024-01-01",
+                                            "date_to": "2024-01-31"})
+        self.assertEqual(january.status_code, 200)
+        body = january.json()
+        self.assertEqual(body["recordsTotal"], 2)
+        self.assertEqual(body["recordsFiltered"], 1)
+        self.assertEqual(len(body["data"]), 1)
+        self.assertIn("40.000000", "".join(str(cell) for cell in body["data"][0]))
+
+        from_march = self.client.get(data_url, {**params, "date_from": "2024-03-01"})
+        self.assertEqual(from_march.json()["recordsFiltered"], 1)
+        self.assertIn(
+            "41.000000",
+            "".join(str(cell) for cell in from_march.json()["data"][0]))
+
+        invalid = self.client.get(data_url, {**params, "date_from": "not-a-date"})
+        self.assertEqual(invalid.json()["recordsFiltered"], 2)
 
     def test_export_micropython_download(self):
         url = reverse("manager:device_export_micropython", args=[self.device.pk])
